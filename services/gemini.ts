@@ -1,10 +1,5 @@
-import { GoogleGenAI, Type, Schema } from "@google/genai";
+import { Type, Schema } from "@google/genai";
 import { College, ComparisonAnalysis, CareerPath, TranscriptAnalysisResult } from "../types";
-
-// Using gemini-3-flash-preview as reliable model for text and multimodal tasks
-const MODEL_NAME = 'gemini-3-flash-preview';
-
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 // Schemas
 const collegeSchema: Schema = {
@@ -122,6 +117,23 @@ const transcriptAnalysisSchema: Schema = {
 };
 
 
+// Using gemini-3-flash-preview via server-side proxy to solve domain/cors issues
+const callBackendGemini = async (payload: any) => {
+  const response = await fetch('/api/gemini', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+  
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.error || 'Failed to call Gemini API via proxy');
+  }
+  
+  const data = await response.json();
+  return data.text;
+};
+
 // Services
 export const findColleges = async (job: string, location: string, excludedColleges: string[] = []): Promise<College[]> => {
   const exclusionText = excludedColleges.length > 0 
@@ -130,19 +142,12 @@ export const findColleges = async (job: string, location: string, excludedColleg
   const prompt = `I want to be a ${job}. I am looking for colleges near ${location}. Suggest 6 colleges that are a good fit. Include public, private, and varied options. ${exclusionText}`;
   
   try {
-    const response = await ai.models.generateContent({
-      model: MODEL_NAME,
-      contents: prompt,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: collegeListSchema,
-      }
+    const text = await callBackendGemini({
+      prompt,
+      schema: collegeListSchema
     });
     
-    if (response.text) {
-      return JSON.parse(response.text) as College[];
-    }
-    return [];
+    return text ? JSON.parse(text) as College[] : [];
   } catch (error) {
     console.error("Gemini Error:", error);
     throw error;
@@ -153,29 +158,14 @@ export const findCollegesFromTranscript = async (base64Image: string, mimeType: 
   const prompt = "Analyze this academic transcript. Infer the student's strengths and potential career goals. Based on this, suggest 3 specific potential career paths and 4 colleges that would be a good fit for these strengths. Return valid JSON.";
   
   try {
-    const response = await ai.models.generateContent({
-      model: MODEL_NAME,
-      contents: {
-        parts: [
-          {
-            inlineData: {
-              mimeType: mimeType,
-              data: base64Image
-            }
-          },
-          { text: prompt }
-        ]
-      },
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: transcriptAnalysisSchema
-      }
+    const text = await callBackendGemini({
+      prompt,
+      isMultimodal: true,
+      imageData: base64Image,
+      mimeType: mimeType
     });
 
-    if (response.text) {
-      return JSON.parse(response.text) as TranscriptAnalysisResult;
-    }
-    return null;
+    return text ? JSON.parse(text) as TranscriptAnalysisResult : null;
   } catch (error) {
     console.error("Gemini Transcript Error:", error);
     throw error;
@@ -187,19 +177,12 @@ export const compareColleges = async (colleges: College[]): Promise<ComparisonAn
   const prompt = `Compare the following colleges: ${collegeNames}. Analyze pros/cons, cost effectiveness (ROI), and give an overall recommendation for a student interested in a balanced college experience.`;
 
   try {
-    const response = await ai.models.generateContent({
-      model: MODEL_NAME,
-      contents: prompt,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: comparisonSchema
-      }
+    const text = await callBackendGemini({
+      prompt,
+      schema: comparisonSchema
     });
 
-    if (response.text) {
-      return JSON.parse(response.text) as ComparisonAnalysis;
-    }
-    return null;
+    return text ? JSON.parse(text) as ComparisonAnalysis : null;
   } catch (error) {
     console.error("Gemini Compare Error:", error);
     throw error;
@@ -210,19 +193,12 @@ export const getCareerPath = async (college: College, careerGoal: string): Promi
   const prompt = `Create a detailed career roadmap for a student attending ${college.name} aiming to become a ${careerGoal}. Include salary projections, a breakdown of key hard and soft skills, and a list of specific potential employers with their website URLs, tips on how to get hired there, and what working there teaches you.`;
 
   try {
-    const response = await ai.models.generateContent({
-      model: MODEL_NAME,
-      contents: prompt,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: careerPathSchema
-      }
+    const text = await callBackendGemini({
+      prompt,
+      schema: careerPathSchema
     });
 
-    if (response.text) {
-      return JSON.parse(response.text) as CareerPath;
-    }
-    return null;
+    return text ? JSON.parse(text) as CareerPath : null;
   } catch (error) {
     console.error("Gemini Career Path Error:", error);
     throw error;
@@ -230,16 +206,14 @@ export const getCareerPath = async (college: College, careerGoal: string): Promi
 };
 
 export const getFinancialAidTips = async (): Promise<string[]> => {
-    // Simple helper example - could be expanded to full JSON schema if needed
-    // For brevity, using a simpler prompt or just returning static/mock for helpers if prompt not strictly required by user specs
-    // But let's use AI for dynamic tips.
-    const response = await ai.models.generateContent({
-        model: MODEL_NAME,
-        contents: "Give 5 top financial aid tips for US college students in JSON array format.",
-        config: {
-            responseMimeType: "application/json",
-            responseSchema: { type: Type.ARRAY, items: { type: Type.STRING } }
-        }
-    });
-    return response.text ? JSON.parse(response.text) : [];
+    try {
+      const text = await callBackendGemini({
+        prompt: "Give 5 top financial aid tips for US college students in JSON array format.",
+        schema: { type: Type.ARRAY, items: { type: Type.STRING } }
+      });
+      return text ? JSON.parse(text) : [];
+    } catch (error) {
+      console.error("Gemini Financial Aid Error:", error);
+      return [];
+    }
 }
