@@ -1,0 +1,21 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile containing their saved colleges and preferences.",
+      "type": "object",
+      "properties": {
+        "savedColleges": {
+          "type": "array",
+          "description": "List of saved colleges"
+        }
+      }
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "User private data storing saved colleges."
+    }
+  }
+}

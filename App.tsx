@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { User, College } from './types';
-import { getSession, logOut } from './services/auth';
+import { auth, logoutUser, getSavedCollegesFromFirestore, saveCollegesToFirestore } from './services/firebase';
+import { onAuthStateChanged } from 'firebase/auth';
 import AuthView from './components/AuthView';
 import SearchView from './components/SearchView';
 import SavedCollegesView from './components/SavedCollegesView';
@@ -11,6 +12,7 @@ type View = 'search' | 'saved' | 'career';
 
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
   const [view, setView] = useState<View>('search');
   const [savedColleges, setSavedColleges] = useState<College[]>([]);
   const [careerCollege, setCareerCollege] = useState<College | null>(null);
@@ -39,36 +41,49 @@ const App: React.FC = () => {
   }, [isDarkMode]);
 
   useEffect(() => {
-    // Check auth
-    const session = getSession();
-    if (session) setUser(session);
+    const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
+      if (fbUser) {
+        setUser({
+          uid: fbUser.uid,
+          name: fbUser.displayName || 'User',
+          email: fbUser.email || '',
+          photoURL: fbUser.photoURL || undefined
+        });
+        
+        // Load colleges from Firestore
+        const colleges = await getSavedCollegesFromFirestore(fbUser.uid);
+        setSavedColleges(colleges);
+      } else {
+        setUser(null);
+        setSavedColleges([]);
+      }
+      setAuthLoading(false);
+    });
 
-    // Load saved colleges
-    const saved = localStorage.getItem('nsf_saved_colleges');
-    if (saved) setSavedColleges(JSON.parse(saved));
+    return () => unsubscribe();
   }, []);
 
-  useEffect(() => {
-    if (user) {
-      localStorage.setItem('nsf_saved_colleges', JSON.stringify(savedColleges));
-    }
-  }, [savedColleges, user]);
-
-  const handleLogout = () => {
-    logOut();
+  const handleLogout = async () => {
+    await logoutUser();
     setUser(null);
     setView('search');
     setSavedColleges([]);
   };
 
-  const saveCollege = (college: College) => {
+  const saveCollege = async (college: College) => {
+    if (!user) return;
     if (!savedColleges.some(c => c.name === college.name)) {
-      setSavedColleges([...savedColleges, college]);
+      const newColleges = [...savedColleges, college];
+      setSavedColleges(newColleges);
+      await saveCollegesToFirestore(user.uid, newColleges);
     }
   };
 
-  const removeCollege = (name: string) => {
-    setSavedColleges(savedColleges.filter(c => c.name !== name));
+  const removeCollege = async (name: string) => {
+    if (!user) return;
+    const newColleges = savedColleges.filter(c => c.name !== name);
+    setSavedColleges(newColleges);
+    await saveCollegesToFirestore(user.uid, newColleges);
   };
 
   const navigateToCareer = (college: College) => {
@@ -79,6 +94,14 @@ const App: React.FC = () => {
   const toggleTheme = () => {
     setIsDarkMode(!isDarkMode);
   };
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-600 dark:border-indigo-400"></div>
+      </div>
+    );
+  }
 
   if (!user) {
     return <AuthView onLogin={setUser} isDarkMode={isDarkMode} onToggleTheme={toggleTheme} />;

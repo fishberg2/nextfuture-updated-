@@ -77,22 +77,15 @@ const CareerPathView: React.FC<CareerPathViewProps> = ({ initialCollege, darkMod
                </div>
                <p className="text-xs text-slate-400 mt-1">Entry to Senior Level</p>
             </div>
-            <div className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700 transition-colors">
-               <h3 className="text-sm font-semibold text-slate-500 dark:text-slate-400 mb-2">Technical Skills</h3>
+            <div className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700 transition-colors md:col-span-2">
+               <h3 className="text-sm font-semibold text-slate-500 dark:text-slate-400 mb-2">Key Skills</h3>
                <div className="flex flex-wrap gap-2">
-                 {path.skills.hard.slice(0, 3).map((skill, i) => (
-                   <span key={i} className="bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-xs px-2 py-1 rounded font-medium">{skill}</span>
+                 {path.skills.hard.map((skill, i) => (
+                   <span key={`hard-${i}`} className="bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-xs px-2 py-1 rounded font-medium">{skill}</span>
                  ))}
-                 {path.skills.hard.length > 3 && <span className="text-xs text-slate-400">+{path.skills.hard.length - 3} more</span>}
-               </div>
-            </div>
-            <div className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700 transition-colors">
-               <h3 className="text-sm font-semibold text-slate-500 dark:text-slate-400 mb-2">Soft Skills</h3>
-               <div className="flex flex-wrap gap-2">
-                 {path.skills.soft.slice(0, 3).map((skill, i) => (
-                   <span key={i} className="bg-teal-50 dark:bg-teal-900/30 text-teal-700 dark:text-teal-300 text-xs px-2 py-1 rounded font-medium">{skill}</span>
+                 {path.skills.soft.map((skill, i) => (
+                   <span key={`soft-${i}`} className="bg-teal-50 dark:bg-teal-900/30 text-teal-700 dark:text-teal-300 text-xs px-2 py-1 rounded font-medium">{skill}</span>
                  ))}
-                 {path.skills.soft.length > 3 && <span className="text-xs text-slate-400">+{path.skills.soft.length - 3} more</span>}
                </div>
             </div>
           </div>

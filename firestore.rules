@@ -1,0 +1,49 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 0. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // 3. Primitive Definition
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+    
+    function incoming() {
+      return request.resource.data;
+    }
+    
+    function existing() {
+      return resource.data;
+    }
+    
+    function isSignedIn() {
+      return request.auth != null && request.auth.token.email_verified == true;
+    }
+
+    // Entity Validators
+    function isValidUser(data) {
+      // Must not contain unexpected large payloads, must have valid list size
+      return (!('savedColleges' in data) || (data.savedColleges is list && data.savedColleges.size() <= 50));
+    }
+
+    // User Profile
+    match /users/{userId} {
+      // Must be signed in, email verified, and requesting their own ID
+      allow get: if isSignedIn() && isValidId(userId) && request.auth.uid == userId;
+      // No list queries allowed for user root
+      allow list: if false;
+
+      allow create: if isSignedIn() && isValidId(userId) && request.auth.uid == userId && isValidUser(incoming());
+      
+      allow update: if isSignedIn() && isValidId(userId) && request.auth.uid == userId 
+                    && isValidUser(incoming()) 
+                    && incoming().diff(existing()).affectedKeys().hasOnly(['savedColleges']);
+                    
+      allow delete: if isSignedIn() && isValidId(userId) && request.auth.uid == userId;
+    }
+  }
+}

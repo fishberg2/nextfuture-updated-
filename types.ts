@@ -56,10 +56,10 @@ export interface TranscriptAnalysisResult {
 }
 
 export interface User {
+  uid: string;
   name: string;
   email: string;
-  passwordHash: string; // Mock hash
-  confirmed: boolean;
+  photoURL?: string;
 }
 
 export interface FinancialAidInfo {

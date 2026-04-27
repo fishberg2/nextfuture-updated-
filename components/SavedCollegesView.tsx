@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { College, ComparisonAnalysis } from '../types';
 import { compareColleges } from '../services/gemini';
-import { Trash2, BarChart2, CheckSquare, Square, Zap, DollarSign } from 'lucide-react';
+import { Trash2, BarChart2, CheckSquare, Square, Zap, DollarSign, BookOpen, Compass } from 'lucide-react';
 import Chart from './Chart';
 
 interface SavedCollegesViewProps {
